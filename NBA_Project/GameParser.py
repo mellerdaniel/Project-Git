@@ -54,6 +54,7 @@ class GameParser:
         self.teamArosters = {}
         self.teamBrosters = {}
         self.teamsRoster = {}
+        self.teamsDataForTree = {}
         self.currentPoints = {}
         self.currentEvaluatedPoints = {}
         self.MeasuringStatistics = [0,0]
@@ -84,14 +85,18 @@ class GameParser:
         #check if this teams didnt play already along the season
         if (not (self.teamAname in self.teamsRoster)):
             self.teamsRoster[self.teamAname]= {}
+            self.teamsDataForTree[self.teamAname]= {}
         if (not (self.teamBname in self.teamsRoster)):
             self.teamsRoster[self.teamBname]= {}
+            self.teamsDataForTree[self.teamBname]= {}
         
         #check if this rosters already played before, if not, initialize their score and time to 0
         if not (self.frozenRosters[self.teamAname] in self.teamsRoster[self.teamAname]):
             self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]] = [0,0,0]
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]] = {}
         if not (self.frozenRosters[self.teamBname] in self.teamsRoster[self.teamBname]):
             self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]] = [0,0,0]
+            self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]] = {}
         
         #closing and opening in order to start reading the file from the beginning
         self.currentGameFile.close()
@@ -106,6 +111,9 @@ class GameParser:
             if (self.substituteLine(currentLine)):
                 currentTeam = self.getCurrentTeam(currentLine)
                 self.teamsTimeUpdate(currentLine)
+                
+                #this part is done for getting data for the decision tree
+                 
                 #usually subs comes together so additional checking for substitution are made
                 #in order not to give "fake" rosters that didnt play together
                 while (self.substituteLine(currentLine)):
@@ -488,7 +496,7 @@ class GameParser:
             if (lineupTime  == 0):
                 self.currentEvaluatedPoints[self.teamAname] += self.teamAscore * timePlayed
             else:
-                self.currentEvaluatedPoints[self.teamAname]  += ((float(lineupOponentsPoints) )/lineupTime) * timePlayed
+                self.currentEvaluatedPoints[self.teamAname]  += ((float(lineupPoints) )/lineupTime) * timePlayed
         else:
             self.currentEvaluatedPoints[self.teamAname] += self.teamAscore * timePlayed
         if (self.frozenRosters[self.teamBname] in self.teamsRoster[self.teamBname]):
@@ -498,7 +506,7 @@ class GameParser:
             if (lineupTime == 0):
                 self.currentEvaluatedPoints[self.teamBname] += self.teamBscore * timePlayed
             else:
-                self.currentEvaluatedPoints[self.teamBname]  += ((float(lineupOponentsPoints) )/lineupTime) * timePlayed
+                self.currentEvaluatedPoints[self.teamBname]  += ((float(lineupPoints) )/lineupTime) * timePlayed
         else:
             self.currentEvaluatedPoints[self.teamBname]  += self.teamBscore * timePlayed
             
@@ -515,7 +523,7 @@ class GameParser:
         realScore[currentTeam] = currentLine[currentLine.find("[")+5:currentLine.find("-")]
         realScore[currentOponentTeam] = currentLine[currentLine.find("-") + 1:currentLine.find("]")]
         winningTeam = self.teamAname if (int(realScore[self.teamAname]) > int(realScore[self.teamBname])) else self.teamBname
-        evaluateWinningTeam = self.teamAname if (self.currentEvaluatedPoints[self.teamAname] < self.currentEvaluatedPoints[self.teamBname]) else self.teamBname
+        evaluateWinningTeam = self.teamAname if (self.currentEvaluatedPoints[self.teamAname] > self.currentEvaluatedPoints[self.teamBname]) else self.teamBname
         self.pointsOffRealScore += math.fabs(int(self.currentEvaluatedPoints[self.teamAname])-int(realScore[self.teamAname]))
         self.pointsOffRealScore += math.fabs(int(self.currentEvaluatedPoints[self.teamBname])-int(realScore[self.teamBname]))
         if (winningTeam == evaluateWinningTeam):
@@ -563,4 +571,9 @@ class GameParser:
             timeCounter+= self.teamsRoster[self.teamBname][lineup][0]
             pointsCounter+=self.teamsRoster[self.teamBname][lineup][1]
             oponenetPointsCounter+=self.teamsRoster[self.teamBname][lineup][2]
-        self.teamBscore = (float(oponenetPointsCounter))/timeCounter  
+        self.teamBscore = (float(oponenetPointsCounter))/timeCounter
+        
+    def getAverageWeight(self):
+        return 1
+    def getAverageHeight(self):
+        return 1  

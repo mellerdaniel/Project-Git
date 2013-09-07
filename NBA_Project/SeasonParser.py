@@ -11,8 +11,6 @@ secondTeamNamePlace = 11
 teamNameSize = 3
 EOF = ''
 
-
-
 class SeasonParser:
     def __init__(self,pbpPath,singelGamePath,playersDataPath,testDataPath,trainDataPath,testSection):
 
@@ -96,7 +94,91 @@ class SeasonParser:
                 rawData = pbpText[i]
                 gameTime = rawData.split('\t')[2]
     
-    
+    def ParseWithDecisionTree(self):
+        pbpFile = open(self.playByPlayDataPath,'r')
+        pbpFile.close()
+        pbpFile = open(self.playByPlayDataPath,'r')
+        pbpText = pbpFile.readlines()
+        dataGamesCounter = 0
+        measureGamesCounter = 0 
+        measureFlag = False
+        i = 1
+        rawData = pbpText[i]
+        previousDateOfGames = rawData[:8]
+        gameTime = rawData.split('\t')[2]
+        teamsNumberOfGames = {}
+        maximumDiffBetweenGames = 0
+        while (gameTime==firstQuaterTime):
+            i = i + 1
+            rawData = pbpText[i]
+            gameTime = rawData.split('\t')[2]
+        #print(rawData)
+        #print(pbpText[1446])
+        while ((rawData != EOF)):
+            
+            teamAname = rawData[firstTeamNamePlace:firstTeamNamePlace+teamNameSize]
+            teamBname = rawData[secondTeamNamePlace:secondTeamNamePlace+teamNameSize]
+            if (teamAname in teamsNumberOfGames):
+                teamsNumberOfGames[teamAname]+=1
+            else:
+                teamsNumberOfGames[teamAname] = 1
+            if (teamBname in teamsNumberOfGames):
+                teamsNumberOfGames[teamBname]+=1
+            else:
+                teamsNumberOfGames[teamBname] = 1
+            self.gameParser.setTeamsName(teamAname, teamBname)           
+            #get game time in order to see if the current game is finished
+            gameDate = rawData[:8]
+            if (gameDate != previousDateOfGames):
+                if (measureFlag):
+                    measureGamesCounter += 1
+                    if (measureGamesCounter > self.GAMES_MEASURE_NUMBER):
+                        measureGamesCounter = 0
+                        measureFlag = False
+                        self.totalSuccesfulMeasure += self.gameParser.MeasuringStatistics[0]
+                        self.totalFailMeasure += self.gameParser.MeasuringStatistics[1]
+                        self.gameParser = GameParser(self.singleGamePath)
+                        self.gameParser.setTeamsName(teamAname, teamBname)
+                        teamsNumberOfGames = {}
+                else:
+                    dataGamesCounter += 1
+                    if (dataGamesCounter > self.GAMES_WINDOW_NUMBER):
+                        dataGamesCounter = 0
+                        measureFlag = True
+                previousDateOfGames = gameDate
+            gameTime = rawData.split('\t')[2]
+            gameFile = open(self.singleGamePath,'w')
+            while (gameTime!=firstQuaterTime): 
+                gameFile.write(rawData)
+                i = i + 1
+                
+                if ((rawData != EOF) and (i < len(pbpText))):               
+                    rawData = pbpText[i]
+                    gameTime = rawData.split('\t')[2]
+                else:
+                    self.textFile.close()
+                    gameFile.close()
+                    self.gameParser.parseSingleGame()
+                    #print("Finished parsing season")
+                    #for team in self.gameParser.teamsRoster:
+                    #    self.gameParser.printTeamData(team)
+                    #exit()
+                    rawData = EOF
+                    break   
+            #finished moving 1 game to a file, now choosing - Parsing or measuring
+            gameFile.close()   
+            if (measureFlag):
+                if (abs(teamsNumberOfGames[teamAname]- teamsNumberOfGames[teamBname]) > maximumDiffBetweenGames):
+                    maximumDiffBetweenGames = abs(teamsNumberOfGames[teamAname]- teamsNumberOfGames[teamBname]) 
+                self.gameParser.estimateSingleGame()
+            else:
+                self.gameParser.parseSingleGame()
+            #skip the not relavnt lines at the beginning of a match
+            while (gameTime==firstQuaterTime):
+                i = i + 1
+                rawData = pbpText[i]
+                gameTime = rawData.split('\t')[2]
+        print("Maximum number of games between teams - " + str(maximumDiffBetweenGames))
     def ParseSlidingWindow(self):
         pbpFile = open(self.playByPlayDataPath,'r')
         pbpFile.close()
