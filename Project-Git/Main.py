@@ -25,7 +25,7 @@ EOF = ''
 #gameParser = GameParser(singleGamePath_Meller)
 
 #measuringTools = MeasuringTools(playByPlayPath_Eitan,singleGamePath_Eitan,playersInfoPath_Eitan,testDataPath_Eitan,trainDataPath_Eitan)
-measuringTools = MeasuringTools(playByPlayPath_Meller,singleGamePath_Meller,playersInfoPath_Meller,testDataPath_Meller,trainDataPath_Meller)
+measuringTools = MeasuringTools(playByPlayPath_Eitan,singleGamePath_Meller,playersInfoPath_Meller,testDataPath_Meller,trainDataPath_Meller)
 
 #Checking how the maximum amount of games two different between two teams matching
 #debug print test for players positions
