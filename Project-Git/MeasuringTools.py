@@ -27,7 +27,7 @@ class MeasuringTools(object):
         end = time.time()
         print("Total running time for phase 0 : " +str(end - start))                
         start = time.time()
-        for i in range (-14,-10):
+        for i in range (-20,-10):
             print('Measuring with sliding window with {0} num of days'.format(abs(i)))
             season = SeasonParser(pbpPath,singelGamePath,playersDataPath,testDataPath,trainDataPath,i)
             print("Total success :" + str(season.totalSuccesfulMeasure))
