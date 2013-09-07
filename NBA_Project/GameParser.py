@@ -110,10 +110,21 @@ class GameParser:
             #checking first if this a substitution line            
             if (self.substituteLine(currentLine)):
                 currentTeam = self.getCurrentTeam(currentLine)
+                oppositeTeam = self.getOppositeTeam(currentTeam);
                 self.teamsTimeUpdate(currentLine)
                 
                 #this part is done for getting data for the decision tree
-                 
+                
+                pointsNormalized = self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][1]/
+                teamAHeightWeight = [self.getAverageHeight(self.frozenRosters[self.teamAname]),self.getAverageWeight(self.frozenRosters[self.teamAname])]
+                teamBHeightWeight = [self.getAverageHeight(self.frozenRosters[self.teamBname]),self.getAverageWeight(self.frozenRosters[self.teamBname])]
+                if not (teamAHeightWeight in self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]]):
+                    self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeight] = 0
+                if not (teamBHeightWeight in self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]]):
+                    self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamAHeightWeight] = 0
+                
+                    
+                
                 #usually subs comes together so additional checking for substitution are made
                 #in order not to give "fake" rosters that didnt play together
                 while (self.substituteLine(currentLine)):
@@ -573,7 +584,7 @@ class GameParser:
             oponenetPointsCounter+=self.teamsRoster[self.teamBname][lineup][2]
         self.teamBscore = (float(oponenetPointsCounter))/timeCounter
         
-    def getAverageWeight(self):
+    def getAverageWeight(self,frozenRoster):
         return 1
-    def getAverageHeight(self):
+    def getAverageHeight(self,frozenRoster):
         return 1  
