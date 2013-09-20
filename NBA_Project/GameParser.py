@@ -6,6 +6,7 @@ Created on Apr 10, 2013
 
 import sys
 import math
+from sklearn import import tree
 #constants
 #import msvcrt as m
 #def wait():
@@ -39,10 +40,12 @@ class GameParser:
     teamBrosters = {}
     teamsRoster = {}
     currentPoints = {}
+    beforeSubCurrentPoints = {}
     currentEvaluatedPoints = {}
     MeasuringStatistics = [0,0]
     counter = 0
     pointsOffRealScore = 0
+    
     #constructor - saves the path for the game file
     def __init__(self,filepath):
         self.fileName = filepath
@@ -56,10 +59,13 @@ class GameParser:
         self.teamsRoster = {}
         self.teamsDataForTree = {}
         self.currentPoints = {}
+        self.beforeSubCurrentPoints = {}
         self.currentEvaluatedPoints = {}
         self.MeasuringStatistics = [0,0]
         self.counter = 0
         self.pointsOffRealScore = 0
+        self.decisionTrees = {}
+        self.measureType = "regular"
     def parseSingleGame(self):
         
         '''
@@ -77,9 +83,10 @@ class GameParser:
         self.frozenRosters = {}
         self.currentPoints[self.teamAname] = 0
         self.currentPoints[self.teamBname] = 0
+        self.beforeSubCurrentPoints[self.teamAname] = 0
+        self.beforeSubCurrentPoints[self.teamBname] = 0
         self.frozenRosters[self.teamAname] = frozenset(self.teamsCurrentRoster[self.teamAname])
         self.frozenRosters[self.teamBname] = frozenset(self.teamsCurrentRoster[self.teamBname])
-        
         
         #re read the game file
         #check if this teams didnt play already along the season
@@ -106,25 +113,16 @@ class GameParser:
         currentLine = self.gameText[i]
         gameTextLength = len(self.gameText)
         while ((i < gameTextLength) and (self.gameText[i] != EOF)) :
-            
+            #print(currentLine)
             #checking first if this a substitution line            
             if (self.substituteLine(currentLine)):
                 currentTeam = self.getCurrentTeam(currentLine)
-                oppositeTeam = self.getOppositeTeam(currentTeam);
-                self.teamsTimeUpdate(currentLine)
+                #oppositeTeam = self.getOppositeTeam(currentTeam)
+                self.teamsTimeUpdate(currentLine)               
                 
                 #this part is done for getting data for the decision tree
-                
-                pointsNormalized = self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][1]/
-                teamAHeightWeight = [self.getAverageHeight(self.frozenRosters[self.teamAname]),self.getAverageWeight(self.frozenRosters[self.teamAname])]
-                teamBHeightWeight = [self.getAverageHeight(self.frozenRosters[self.teamBname]),self.getAverageWeight(self.frozenRosters[self.teamBname])]
-                if not (teamAHeightWeight in self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]]):
-                    self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeight] = 0
-                if not (teamBHeightWeight in self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]]):
-                    self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamAHeightWeight] = 0
-                
-                    
-                
+                self.calcRosterWinsWithFeatures()
+                                     
                 #usually subs comes together so additional checking for substitution are made
                 #in order not to give "fake" rosters that didnt play together
                 while (self.substituteLine(currentLine)):
@@ -158,6 +156,7 @@ class GameParser:
                         if((i+1)<gameTextLength):
                             
                             self.teamsTimeUpdate(currentLine)
+                            self.calcRosterWinsWithFeatures()
                             self.findStartingLineup(i+1)
                             self.frozenRostersDefine()
                             self.overTime = True
@@ -166,10 +165,12 @@ class GameParser:
                         else:
                             #if not over time, just sum up the time rosters played
                             self.teamsTimeUpdate(currentLine)
+                            self.calcRosterWinsWithFeatures()
                             break
                     else:
                         #sum up time, find new starting lineup for the next quarter
                         self.teamsTimeUpdate(currentLine)
+                        self.calcRosterWinsWithFeatures()
                         self.findStartingLineup(i+1)
                         self.frozenRostersDefine()
                     
@@ -216,9 +217,7 @@ class GameParser:
             print(timeCounter)
             print("Points:")
             print(pointsCounter)
-        '''
-            
-    
+        '''   
     def frozenRostersDefine(self):
         self.frozenRosters[self.teamAname] = frozenset(self.teamsCurrentRoster[self.teamAname])
         self.frozenRosters[self.teamBname] = frozenset(self.teamsCurrentRoster[self.teamBname])
@@ -229,7 +228,13 @@ class GameParser:
         if not ((self.frozenRosters[self.teamBname] in self.teamsRoster[self.teamBname])):
             self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]]= [0,0,0]
         
-                    
+        #decision tree
+        if not ((self.frozenRosters[self.teamAname] in self.teamsDataForTree[self.teamAname])):
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]]= {}
+
+        if not ((self.frozenRosters[self.teamBname] in self.teamsDataForTree[self.teamBname])):
+            self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]]= {}
+                           
     def teamsTimeUpdate(self,currentLine):
         
         tempSeconds = self.currentStartSeconds
@@ -249,7 +254,10 @@ class GameParser:
             timeDiff =self.calculateTimeDiff(int(self.currentStartMinutes),int(self.currentStartSeconds),int(currentMinutes),int(currentSeconds))
         else:
             timeDiff =self.calculateTimeDiffOvertime(int(self.currentStartMinutes),int(self.currentStartSeconds),int(currentMinutes),int(currentSeconds))
-            
+        #if (timeDiff == 0):
+            #print("WTF ITS 0")
+            #print(currentLine)
+                
         self.teamsRoster[currentTeam][self.frozenRosters[currentTeam]][0] += timeDiff
                     
         #update times
@@ -408,8 +416,112 @@ class GameParser:
         self.printTeamData(self.teamAname)
         self.printTeamData(self.teamBname)
 
+    def buildDecisionTree(self):
+        for team in self.teamsDataForTree:
+            self.decisionTrees[team] = {}
+            for roster in self.teamsDataForTree[team]:
+                self.decisionTrees[team][roster] = tree.DecisionTreeClassifier()
+                examples = []
+                results = []
+                for features in self.teamsDataForTree[team][roster]:
+                    examples.append(features)
+                    if (self.teamsDataForTree[team][roster][0] > 0):
+                        results.append(1)
+                    if (self.teamsDataForTree[team][roster][0] < 0):
+                        results.append(0)
+                self.decisionTrees[team][roster] = self.decisionTrees[team][roster].fit(examples,results)
+    
     #MEASURE SINGLE GAME - should be here? maybe - for now it is.
     def estimateSingleGame(self):
+        #self.counter += 1
+        self.overTime = False
+        self.currentStartMinutes = 48
+        self.currentStartSeconds = 0
+        self.currentGameFile = open(self.fileName,'r')
+        self.gameText = self.currentGameFile.readlines()
+        self.findStartingLineup(0)
+        self.currentEvaluatedPoints[self.teamAname] = 0
+        self.currentEvaluatedPoints[self.teamBname] = 0
+        self.frozenRosters = {}
+        self.frozenRosters[self.teamAname] = frozenset(self.teamsCurrentRoster[self.teamAname])
+        self.frozenRosters[self.teamBname] = frozenset(self.teamsCurrentRoster[self.teamBname])
+        
+        self.currentGameFile.close()
+        self.currentGameFile = open(self.fileName,'r')
+        self.gameText = self.currentGameFile.readlines()
+        i = 0
+        try:
+            currentLine = self.gameText[i]
+        except:
+            a = 5        
+        gameTextLength = len(self.gameText)
+        #if (currentLine.find('20080416UTASAS') != -1):
+            #x=6
+        self.calculateTeamsScore()
+        while ((i < gameTextLength) and (self.gameText[i] != EOF)) :
+            #print(currentLine)
+            if (self.substituteLine(currentLine)):
+                currentTeam = self.getCurrentTeam(currentLine)
+                
+                self.evaluateScore(currentLine)
+                #usually subs comes together so additional checking for substitution are made
+                #in order not to give "fake" rosters that didnt play together
+                while (self.substituteLine(currentLine)):
+                    if (self.endOfQuarterLine(i)):
+                        self.findStartingLineup(i)
+                        i = i+1
+                        break
+                    currentTeam = self.getCurrentTeam(currentLine)
+                    subName = self.getSubName(currentLine)
+                    currentPlayer = self.getCurrentPlayer(currentLine)
+                    try:
+                        self.teamsCurrentRoster[currentTeam].remove(currentPlayer)
+                    except Exception:
+                        a = 5
+                    self.teamsCurrentRoster[currentTeam].add(subName)
+                    i = i+1
+                    currentLine = self.gameText[i]
+                i=i-1
+                #all subs done    
+                self.frozenRostersDefine()
+            else:
+                #if not sub - checking end of quarter, in ends of quarter subs are being made
+                # and a new roster has to be found
+                if (self.endOfQuarterLine(i)):
+                    
+                    #if its end of 4th quarter it means that we have to sum up and check 
+                    #for overtime
+                    if (self.fourthQuarterLine(i)):                       
+                        
+                        #this is the check for overtime, if we still have lines to read, it means we have over time
+                        if((i+5)<gameTextLength):
+                            
+                            self.evaluateScore(currentLine)
+                            self.findStartingLineup(i+1)
+                            self.frozenRostersDefine()
+                            self.overTime = True
+                            self.currentStartMinutes = 0
+                            self.currentStartSeconds = 0
+                        else:
+                            #if not over time, just sum up the time rosters played
+                    
+                            break
+                    else:
+                        #sum up time, find new starting lineup for the next quarter
+                        self.evaluateScore(currentLine)
+                        self.findStartingLineup(i+1)
+                        self.frozenRostersDefine()
+                    
+                    #self.debugPrint()
+                    #raw_input("End of quarter, Press Enter to continue...")
+                    
+            i = i + 1        
+            if (i < gameTextLength):
+                currentLine = self.gameText[i]
+        self.evaluateScore(currentLine)
+        self.checkEvaluation(i-1)
+        
+    def estimateWithSingleGame(self):
         #self.counter += 1
         self.overTime = False
         self.currentStartMinutes = 48
@@ -495,11 +607,31 @@ class GameParser:
             if (i < gameTextLength):
                 currentLine = self.gameText[i]
         self.evaluateScore(currentLine)
-        self.checkEvaluation(i-1)
-        
-        
-    def evaluateScore(self, currentLine):
+        self.checkEvaluation(i-1)    
+    def evaluateScore(self, currentLine):            
         timePlayed = self.getTimeForCurrentLineup(currentLine)
+        if (self.measureType == "decisionTree"):
+            lineupPoints = self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]][1]
+            lineupTime = self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]][0]            
+            opponentAveragePoints = ((float(lineupPoints) )/lineupTime)  
+            opponnentHeight = self.getAverageHeight(self.frozenRosters[self.teamBname])
+            opponnentWeight = self.getAverageWeight(self.frozenRosters[self.teamBname])
+            opponenntFeatures = frozenset([opponnentHeight,opponnentWeight,opponentAveragePoints])
+                        
+            teamApointsMadeUntilSub = self.currentPoints[self.teamAname] - self.beforeSubCurrentPoints[self.teamAname]
+            teamBpointsMadeUntilSub = self.currentPoints[self.teamBname] - self.beforeSubCurrentPoints[self.teamBname]            
+            
+            predictionResult = self.decisionTrees[self.teamAname][self.frozenRosters[self.teamAname]].predict(opponenntFeatures)
+            #1 - teamA won , -1 = teamB won
+            if (teamApointsMadeUntilSub != teamBpointsMadeUntilSub):
+                result = ((teamApointsMadeUntilSub-teamBpointsMadeUntilSub)/(abs((teamApointsMadeUntilSub-teamBpointsMadeUntilSub))))
+                if (predictionResult[0] == result):
+                    self.MeasuringStatistics[0] += 1
+                else:
+                    self.MeasuringStatistics[1] += 1                         
+            self.beforeSubCurrentPoints[self.teamAname] = self.currentPoints[self.teamAname]
+            self.beforeSubCurrentPoints[self.teamBname] = self.currentPoints[self.teamBname]
+            
         if (self.frozenRosters[self.teamAname] in self.teamsRoster[self.teamAname]):
             lineupPoints = self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][1]
             lineupOponentsPoints = self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][2]
@@ -583,7 +715,44 @@ class GameParser:
             pointsCounter+=self.teamsRoster[self.teamBname][lineup][1]
             oponenetPointsCounter+=self.teamsRoster[self.teamBname][lineup][2]
         self.teamBscore = (float(oponenetPointsCounter))/timeCounter
+    
+    
+    def calcRosterWinsWithFeatures(self):
         
+        if ((self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][0]==0)) or ((self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]][0] == 0)):
+            return            
+        teamApointsNormalized = (float(self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][1])/(self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][0]))
+        teamBpointsNormalized = (float(self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]][1])/(self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]][0]))
+        teamAHeightWeightPoints = frozenset([self.getAverageHeight(self.frozenRosters[self.teamAname]),self.getAverageWeight(self.frozenRosters[self.teamAname]),teamApointsNormalized])
+        teamBHeightWeightPoints = frozenset([self.getAverageHeight(self.frozenRosters[self.teamBname]),self.getAverageWeight(self.frozenRosters[self.teamBname]),teamBpointsNormalized])
+        
+        if not (teamAHeightWeightPoints in self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]]):
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints] = [0,0,0]
+        if not (teamBHeightWeightPoints in self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]]):
+            self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamBHeightWeightPoints] = [0,0,0]
+        
+        #were saving the following data
+        #teamsDataForTree[0] - wins over such type of roster
+        #teamsDataForTree[1] - points made over such roster
+        #teamsDataForTree[2] - points scored on the roster
+        teamApointsMadeUntilSub = self.currentPoints[self.teamAname] - self.beforeSubCurrentPoints[self.teamAname]
+        teamBpointsMadeUntilSub = self.currentPoints[self.teamBname] - self.beforeSubCurrentPoints[self.teamBname]
+        
+        if ((teamApointsMadeUntilSub - teamBpointsMadeUntilSub)>0):
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][0]+= 1                    
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][0]-= 1
+        if ((teamApointsMadeUntilSub - teamBpointsMadeUntilSub)<0):
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][0]-= 1                    
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][0]+= 1
+        
+        self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][1]+= teamApointsMadeUntilSub
+        self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][2]+= teamBpointsMadeUntilSub
+        self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamBHeightWeightPoints][1]+= teamBpointsMadeUntilSub
+        self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamBHeightWeightPoints][2]+= teamApointsMadeUntilSub
+            
+        self.beforeSubCurrentPoints[self.teamAname] = self.currentPoints[self.teamAname]
+        self.beforeSubCurrentPoints[self.teamBname] = self.currentPoints[self.teamBname]
+            
     def getAverageWeight(self,frozenRoster):
         return 1
     def getAverageHeight(self,frozenRoster):

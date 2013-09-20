@@ -12,7 +12,7 @@ teamNameSize = 3
 EOF = ''
 
 class SeasonParser:
-    def __init__(self,pbpPath,singelGamePath,playersDataPath,testDataPath,trainDataPath,testSection):
+    def __init__(self,pbpPath,singelGamePath,playersDataPath,testDataPath,trainDataPath,testType,testSection):
 
         self.playByPlayDataPath = pbpPath
         self.singleGamePath = singelGamePath
@@ -26,14 +26,20 @@ class SeasonParser:
         self.totalFailMeasure = 0
         #self.divideSeason(testSection)
 #       self.playersData = PlayersData(playersDataPath)
+        
         self.gameParser = GameParser(singelGamePath)
-        if (testSection < 0):
-            self.GAMES_WINDOW_NUMBER = abs(testSection)
-            self.GAMES_MEASURE_NUMBER = 2   
-            self.ParseSlidingWindow()
-        else:
+        if (testType == "regular"):
             self.parse()
             self.measure()
+        if (testType == "slidingWindow"):
+            self.GAMES_WINDOW_NUMBER = abs(testSection)
+            self.GAMES_MEASURE_NUMBER = 2   
+            self.ParseSlidingWindow()      
+        if (testType =="decisionTree"):
+            self.gameParser.measureType = "decisionTree"
+            self.GAMES_WINDOW_NUMBER = abs(testSection)
+            self.GAMES_MEASURE_NUMBER = 2   
+            self.ParseWithDecisionTree()
     #     self.FindCompleteRosters()
 #         self.playersPermutations = {}
 #         self.FindPermutations()
@@ -95,10 +101,14 @@ class SeasonParser:
                 gameTime = rawData.split('\t')[2]
     
     def ParseWithDecisionTree(self):
+        
+        #Reading the file - why open twice? safty.
         pbpFile = open(self.playByPlayDataPath,'r')
         pbpFile.close()
         pbpFile = open(self.playByPlayDataPath,'r')
         pbpText = pbpFile.readlines()
+        
+        #
         dataGamesCounter = 0
         measureGamesCounter = 0 
         measureFlag = False
@@ -138,6 +148,7 @@ class SeasonParser:
                         self.totalSuccesfulMeasure += self.gameParser.MeasuringStatistics[0]
                         self.totalFailMeasure += self.gameParser.MeasuringStatistics[1]
                         self.gameParser = GameParser(self.singleGamePath)
+                        self.gameParser.measureType = "decisionTree"
                         self.gameParser.setTeamsName(teamAname, teamBname)
                         teamsNumberOfGames = {}
                 else:
@@ -145,6 +156,7 @@ class SeasonParser:
                     if (dataGamesCounter > self.GAMES_WINDOW_NUMBER):
                         dataGamesCounter = 0
                         measureFlag = True
+                        self.gameParser.buildDecisionTree()
                 previousDateOfGames = gameDate
             gameTime = rawData.split('\t')[2]
             gameFile = open(self.singleGamePath,'w')
@@ -171,6 +183,7 @@ class SeasonParser:
                 if (abs(teamsNumberOfGames[teamAname]- teamsNumberOfGames[teamBname]) > maximumDiffBetweenGames):
                     maximumDiffBetweenGames = abs(teamsNumberOfGames[teamAname]- teamsNumberOfGames[teamBname]) 
                 self.gameParser.estimateSingleGame()
+                
             else:
                 self.gameParser.parseSingleGame()
             #skip the not relavnt lines at the beginning of a match
@@ -252,7 +265,8 @@ class SeasonParser:
                     break   
             #finished moving 1 game to a file, now choosing - Parsing or measuring
             gameFile.close()   
-            if (measureFlag):
+            if (measureFlag):                
+                #this is user for tracking what is the maximum game diffrence between teams playing
                 if (abs(teamsNumberOfGames[teamAname]- teamsNumberOfGames[teamBname]) > maximumDiffBetweenGames):
                     maximumDiffBetweenGames = abs(teamsNumberOfGames[teamAname]- teamsNumberOfGames[teamBname]) 
                 self.gameParser.estimateSingleGame()
