@@ -6,7 +6,7 @@ Created on Apr 10, 2013
 
 import sys
 import math
-from sklearn import import tree
+from sklearn import tree
 #constants
 #import msvcrt as m
 #def wait():
@@ -165,7 +165,7 @@ class GameParser:
                         else:
                             #if not over time, just sum up the time rosters played
                             self.teamsTimeUpdate(currentLine)
-                            self.calcRosterWinsWithFeatures()
+                            #self.calcRosterWinsWithFeatures()
                             break
                     else:
                         #sum up time, find new starting lineup for the next quarter
@@ -181,16 +181,21 @@ class GameParser:
                 else:
                     #if a basket were made in the current line, update teams status
                     if (self.pointsLine(currentLine)):
-                        pointsFound = currentLine.find(POINTS_SIGN)
-                        pointsFoundOvertime = 0
-                        if (self.overTime):
-                            pointsFoundOvertime = currentLine[currentLine.find('-')+1:].find('-') + 1
+                        
+                        #pointsFound = currentLine.find(POINTS_SIGN)
+                        #pointsFoundOvertime = 0
+                        #if (self.overTime):
+                        #    pointsFoundOvertime = currentLine[currentLine.find('-')+1:].find('-') + 1
                     
                         #print(currentLine)
+                        
                         currentTeam = self.getCurrentTeam(currentLine)
                         oppositeTeam = self.getOppositeTeam(currentTeam)
                         pointsStart = currentLine.find("[")
-                        pointsScored = currentLine[pointsStart+5:(pointsFound+pointsFoundOvertime)]
+                        pointsEnd = currentLine.find("]")
+                        score = currentLine[pointsStart+1:pointsEnd]
+                        pointsSign = score.find("-")
+                        pointsScored = score[3:pointsSign]
                         pointsMade = (int(pointsScored) - int(self.currentPoints[currentTeam]))
                         #points made by lineup
                         self.teamsRoster[currentTeam][self.frozenRosters[currentTeam]][1]+= pointsMade
@@ -380,6 +385,10 @@ class GameParser:
         else:
             return False
     def pointsLine(self,currentLine):        
+        if (currentLine.find(POINTS_SIGN) != -1):
+            return True
+        return False
+        
         pointsFound = currentLine.find(POINTS_SIGN)
         pointsFoundOverTime = 0
         if (self.overTime):
@@ -387,7 +396,6 @@ class GameParser:
         teamSign = currentLine.find("]") 
         lineAuto = currentLine.find("LINE-AUTO")
         lineAb = currentLine.find("LINE-AB")
- 
         if ((pointsFound != -1) and (lineAuto == -1) and (lineAb == -1) and ((pointsFoundOverTime+pointsFound) < teamSign)):
             if (self.overTime):
                     if (pointsFoundOverTime != -1):
@@ -397,6 +405,7 @@ class GameParser:
             return True
         else:
             return False   
+        
     #Debuging printing
     
     def printTeamData(self,team):               
@@ -424,11 +433,12 @@ class GameParser:
                 examples = []
                 results = []
                 for features in self.teamsDataForTree[team][roster]:
-                    examples.append(features)
                     if (self.teamsDataForTree[team][roster][0] > 0):
+                        examples.append(list(features))
                         results.append(1)
                     if (self.teamsDataForTree[team][roster][0] < 0):
-                        results.append(0)
+                        examples.append(list(features))
+                        results.append(-1)
                 self.decisionTrees[team][roster] = self.decisionTrees[team][roster].fit(examples,results)
     
     #MEASURE SINGLE GAME - should be here? maybe - for now it is.
@@ -616,10 +626,9 @@ class GameParser:
             opponentAveragePoints = ((float(lineupPoints) )/lineupTime)  
             opponnentHeight = self.getAverageHeight(self.frozenRosters[self.teamBname])
             opponnentWeight = self.getAverageWeight(self.frozenRosters[self.teamBname])
-            opponenntFeatures = frozenset([opponnentHeight,opponnentWeight,opponentAveragePoints])
-                        
-            teamApointsMadeUntilSub = self.currentPoints[self.teamAname] - self.beforeSubCurrentPoints[self.teamAname]
-            teamBpointsMadeUntilSub = self.currentPoints[self.teamBname] - self.beforeSubCurrentPoints[self.teamBname]            
+            opponenntFeatures = [opponnentHeight,opponnentWeight,opponentAveragePoints] 
+            teamApointsMadeUntilSub = (self.currentPoints[self.teamAname] - self.beforeSubCurrentPoints[self.teamAname])
+            teamBpointsMadeUntilSub = (self.currentPoints[self.teamBname] - self.beforeSubCurrentPoints[self.teamBname])            
             
             predictionResult = self.decisionTrees[self.teamAname][self.frozenRosters[self.teamAname]].predict(opponenntFeatures)
             #1 - teamA won , -1 = teamB won
@@ -723,32 +732,32 @@ class GameParser:
             return            
         teamApointsNormalized = (float(self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][1])/(self.teamsRoster[self.teamAname][self.frozenRosters[self.teamAname]][0]))
         teamBpointsNormalized = (float(self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]][1])/(self.teamsRoster[self.teamBname][self.frozenRosters[self.teamBname]][0]))
-        teamAHeightWeightPoints = frozenset([self.getAverageHeight(self.frozenRosters[self.teamAname]),self.getAverageWeight(self.frozenRosters[self.teamAname]),teamApointsNormalized])
-        teamBHeightWeightPoints = frozenset([self.getAverageHeight(self.frozenRosters[self.teamBname]),self.getAverageWeight(self.frozenRosters[self.teamBname]),teamBpointsNormalized])
+        teamAHeightWeightPoints = [self.getAverageHeight(self.frozenRosters[self.teamAname]),self.getAverageWeight(self.frozenRosters[self.teamAname]),teamApointsNormalized]
+        teamBHeightWeightPoints = [self.getAverageHeight(self.frozenRosters[self.teamBname]),self.getAverageWeight(self.frozenRosters[self.teamBname]),teamBpointsNormalized]
         
-        if not (teamAHeightWeightPoints in self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]]):
-            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints] = [0,0,0]
-        if not (teamBHeightWeightPoints in self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]]):
-            self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamBHeightWeightPoints] = [0,0,0]
+        if not (teamBHeightWeightPoints in self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]]):
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamBHeightWeightPoints] = [0,0,0]
+        if not (teamAHeightWeightPoints in self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]]):
+            self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints] = [0,0,0]
         
         #were saving the following data
         #teamsDataForTree[0] - wins over such type of roster
         #teamsDataForTree[1] - points made over such roster
         #teamsDataForTree[2] - points scored on the roster
-        teamApointsMadeUntilSub = self.currentPoints[self.teamAname] - self.beforeSubCurrentPoints[self.teamAname]
-        teamBpointsMadeUntilSub = self.currentPoints[self.teamBname] - self.beforeSubCurrentPoints[self.teamBname]
+        teamApointsMadeUntilSub = int(self.currentPoints[self.teamAname]) - int(self.beforeSubCurrentPoints[self.teamAname])
+        teamBpointsMadeUntilSub = int(self.currentPoints[self.teamBname]) - int(self.beforeSubCurrentPoints[self.teamBname])
         
         if ((teamApointsMadeUntilSub - teamBpointsMadeUntilSub)>0):
-            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][0]+= 1                    
-            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][0]-= 1
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamBHeightWeightPoints][0]+= 1                    
+            self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][0]-= 1
         if ((teamApointsMadeUntilSub - teamBpointsMadeUntilSub)<0):
-            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][0]-= 1                    
-            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][0]+= 1
+            self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamBHeightWeightPoints][0]-= 1                    
+            self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][0]+= 1
         
-        self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][1]+= teamApointsMadeUntilSub
-        self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamAHeightWeightPoints][2]+= teamBpointsMadeUntilSub
-        self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamBHeightWeightPoints][1]+= teamBpointsMadeUntilSub
-        self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamBHeightWeightPoints][2]+= teamApointsMadeUntilSub
+        self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamBHeightWeightPoints][1]+= teamApointsMadeUntilSub
+        self.teamsDataForTree[self.teamAname][self.frozenRosters[self.teamAname]][teamBHeightWeightPoints][2]+= teamBpointsMadeUntilSub
+        self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][1]+= teamBpointsMadeUntilSub
+        self.teamsDataForTree[self.teamBname][self.frozenRosters[self.teamBname]][teamAHeightWeightPoints][2]+= teamApointsMadeUntilSub
             
         self.beforeSubCurrentPoints[self.teamAname] = self.currentPoints[self.teamAname]
         self.beforeSubCurrentPoints[self.teamBname] = self.currentPoints[self.teamBname]

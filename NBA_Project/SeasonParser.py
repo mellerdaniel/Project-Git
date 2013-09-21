@@ -235,7 +235,8 @@ class SeasonParser:
                         measureFlag = False
                         self.totalSuccesfulMeasure += self.gameParser.MeasuringStatistics[0]
                         self.totalFailMeasure += self.gameParser.MeasuringStatistics[1]
-                        self.gameParser = GameParser(self.singleGamePath)
+                        #self.gameParser = GameParser(self.singleGamePath)
+                        self.gameParser.MeasuringStatistics = [0,0]
                         self.gameParser.setTeamsName(teamAname, teamBname)
                         teamsNumberOfGames = {}
                 else:
