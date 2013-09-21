@@ -4,6 +4,10 @@ Created on Apr 10, 2013
 @author: Daniel Meller
 '''
 from MeasuringTools import MeasuringTools
+
+#push try
+
+
 #constants
 firstQuaterTime = "00:48:00"
 playByPlayPath = '/Users/eitantorf/Dropbox/NBA/Play by play data/playbyplay20072008reg20081211.txt'
