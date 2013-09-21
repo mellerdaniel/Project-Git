@@ -6,27 +6,27 @@ Created on Apr 10, 2013
 from MeasuringTools import MeasuringTools
 #constants
 firstQuaterTime = "00:48:00"
-#playByPlayPath = '/Users/eitantorf/Documents/Eclipse Workspace/NBA/Play by play data/playbyplay20072008reg.txt'
+playByPlayPath = '/Users/eitantorf/Dropbox/NBA/Play by play data/playbyplay20072008reg20081211.txt'
 #playByPlayPath = r'C:\Users\User\Dropbox\NBA\Play by play data\playbyplay20072008reg20081211.txt'
-playByPlayPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/playbyplay20072008reg20081211.txt'
+#playByPlayPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/playbyplay20072008reg20081211.txt'
 
-
+playersInfoPath = '/Users/eitantorf/Dropbox/NBA/Play by play data\playersInfo.txt'
 #playersInfoPath = r'C:\Users\User\Dropbox\NBA\Play by play data\playersInfo.txt'
-playersInfoPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/playersInfo.txt'
+#playersInfoPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/playersInfo.txt'
 
-#singleGamePath = '/Users/eitantorf/Documents/Eclipse Workspace/NBA/Play by play data/gameFile.txt'
+singleGamePath = '/Users/eitantorf/Dropbox/NBA/Play by play data\gameFile.txt'
 #singleGamePath = r'C:\Users\User\Dropbox\NBA\Play by play data\gameFile.txt'
-singleGamePath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/gameFile.txt'
+#singleGamePath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/gameFile.txt'
 
 
 
-#testDataPath = '/Users/eitantorf/Documents/Eclipse Workspace/NBA/Play by play data/testFile.txt'
+testDataPath = '/Users/eitantorf/Dropbox/NBA/Play by play data/Play by play data/testFile.txt'
 #testDataPath = r'C:\Users\User\Dropbox\NBA\Play by play data\testFile.txt'
-testDataPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/testFile.txt'
+#testDataPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/testFile.txt'
 
-#trainDataPath = r'C:\Users\User\Dropbox\NBA\Play by play data\trainFile.txt'
+trainDataPath = r'/Users/eitantorf/Dropbox/NBA/Play by play data/trainFile.txt'
 #trainDataPath = '/Users/eitantorf/Documents/Eclipse Workspace/NBA/Play by play data/trainFile.txt'
-trainDataPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/trainFile.txt'
+#trainDataPath = r'/home/mellerdaniel/Dropbox/NBA/Play by play data/trainFile.txt'
 
 firstTeamNamePlace = 8
 secondTeamNamePlace = 11
